@@ -1,0 +1,13 @@
+# Spec/planning workspace — not shipped with the project
+openspec/
+
+# OS / editor cruft
+.DS_Store
+*.swp
+
+# Dependencies / build output (adjust once the stack is chosen)
+node_modules/
+dist/
+build/
+.env
+.env.local
