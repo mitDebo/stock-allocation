@@ -1,0 +1,22 @@
+{
+  "name": "stock-allocation",
+  "version": "1.0.0",
+  "scripts": {
+    "test:unit": "vitest run"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mitDebo/stock-allocation.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mitDebo/stock-allocation/issues"
+  },
+  "homepage": "https://github.com/mitDebo/stock-allocation#readme",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "vitest": "^5.0.0"
+  }
+}
