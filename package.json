@@ -18,5 +18,8 @@
   "type": "module",
   "devDependencies": {
     "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "cheerio": "^1.2.0"
   }
 }
