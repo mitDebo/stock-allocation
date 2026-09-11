@@ -1,0 +1,8 @@
+node_modules
+.git
+.claude
+openspec
+test
+Claude outputs
+dist
+*.log

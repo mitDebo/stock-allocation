@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Allocation</title>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <!--
+      Hidden bot-tarpit honeypot link (openspec: bot-tarpit-link).
+      Lives here in the static HTML - not inside the React app - so it is
+      present even when the page is fetched without executing any
+      JavaScript (this is a client-rendered SPA; anything React mounts
+      into #root would NOT appear in that raw fetch).
+
+      Hidden from real users three ways at once: the inline style is the
+      standard "visually hidden" technique (off-screen, zero-size,
+      clipped) rather than display:none, so it stays discoverable in raw
+      markup; aria-hidden="true" keeps screen readers from announcing it;
+      tabindex="-1" keeps keyboard users from tabbing to it. See
+      public/robots.txt for the accompanying crawler-facing exclusion.
+    -->
+    <a
+      href="https://tarpit.kdubs.tech"
+      rel="nofollow"
+      aria-hidden="true"
+      tabindex="-1"
+      style="position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0;"
+      >do not follow</a
+    >
+
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

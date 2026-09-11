@@ -11,3 +11,13 @@ dist/
 build/
 .env
 .env.local
+
+# Generated at build time by scripts/generate-stock-data.js — never
+# hand-edited, never committed. A stale committed copy could silently
+# ship instead of the real GitHub Actions build's fresh output.
+src/data/stocks.json
+
+# One-off scratch output the desktop app can drop into the repo root when
+# delivering a file from a session (e.g. the real-data validation sample
+# from earlier this project) - never a project file, never committed.
+Claude outputs/

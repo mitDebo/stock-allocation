@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# Honeypot: the hidden tarpit link on the homepage (see index.html) is
+# never linked from anywhere a compliant crawler would find without
+# reading this file. A well-behaved crawler that honors this Disallow
+# never requests it; robots.txt cannot govern crawling of the tarpit's
+# own external domain, so tarpit.kdubs.tech is responsible for excluding
+# itself from compliant crawlers on its own.
+Disallow: /tarpit
