@@ -1,5 +1,5 @@
 import { StockCard } from "@/components/StockCard";
-import type { FractionalSettings, SourceStock } from "@/lib/allocate";
+import type { AllocationResult, FractionalSettings, SourceStock } from "@/lib/allocate";
 import { resolveFractionalAllowed } from "@/lib/rounding";
 
 export interface StockGridProps {
@@ -9,18 +9,31 @@ export interface StockGridProps {
   n: number;
   fractional: FractionalSettings;
   onFractionalOverrideChange: (symbol: string, allowed: boolean) => void;
+  /** Present once Allocate has been clicked - null/undefined means every
+   * card renders its pre-allocation view. */
+  results?: AllocationResult | null;
+  boughtSymbols?: string[];
+  onBoughtChange?: (symbol: string, bought: boolean) => void;
 }
 
 // The right pane: intro copy, a "showing top N stocks" line, and a
-// StockCard per stock. AllocationPage (section 5) owns all of the state
-// this renders - StockGrid is presentation only, same as
-// AllocationControls on the left.
+// StockCard per stock. AllocationPage owns all of the state this
+// renders - StockGrid is presentation only, same as AllocationControls
+// on the left. It matches each stock up with its own result (by symbol)
+// and bought state, so StockCard never has to think about the list as a
+// whole.
 export function StockGrid({
   stocks,
   n,
   fractional,
   onFractionalOverrideChange,
+  results,
+  boughtSymbols,
+  onBoughtChange,
 }: StockGridProps) {
+  const resultsBySymbol = new Map(results?.perStock.map((r) => [r.symbol, r]) ?? []);
+  const boughtSet = new Set(boughtSymbols ?? []);
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
@@ -40,6 +53,9 @@ export function StockGrid({
             onFractionalAllowedChange={(allowed) =>
               onFractionalOverrideChange(stock.symbol, allowed)
             }
+            result={resultsBySymbol.get(stock.symbol)}
+            bought={boughtSet.has(stock.symbol)}
+            onBoughtChange={(bought) => onBoughtChange?.(stock.symbol, bought)}
           />
         ))}
       </div>

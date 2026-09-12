@@ -1,19 +1,10 @@
-import { useState } from "react";
+import { AllocationPage } from "@/components/AllocationPage";
+import type { SourceStock } from "@/lib/allocate";
 
-import { AllocationControls } from "@/components/AllocationControls";
-import { StockGrid } from "@/components/StockGrid";
-import type {
-  CashHandlingStrategy,
-  FractionalSettings,
-  SourceStock,
-  WeightingModel,
-} from "@/lib/allocate";
-
-// Visual checkpoint only (tasks.md 3.7 and 4.3) - this is NOT
-// AllocationPage's real state wiring, that's section 5. Just enough
-// local state, and a handful of made-up stocks, so the controls and
-// the grid are interactive to look at and tweak in the browser. Real
-// synced-list data isn't wired up until later.
+// Placeholder data until the real synced-list pipeline
+// (scripts/generate-stock-data.js) is wired into the app - not part of
+// the allocation-engine change. AllocationPage itself is the real,
+// fully-tested thing now; this is just what feeds it for the moment.
 const SAMPLE_STOCKS: SourceStock[] = [
   {
     symbol: "AAPL",
@@ -66,60 +57,7 @@ const SAMPLE_STOCKS: SourceStock[] = [
 ];
 
 function App() {
-  const [dollarAmount, setDollarAmount] = useState(1000);
-  const [n, setN] = useState(SAMPLE_STOCKS.length);
-  const [model, setModel] = useState<WeightingModel>("equal");
-  const [globalFractionalAllowed, setGlobalFractionalAllowed] = useState(true);
-  const [cashHandlingStrategy, setCashHandlingStrategy] =
-    useState<CashHandlingStrategy>("maximizeInvested");
-  const [perStockOverrides, setPerStockOverrides] = useState<Record<string, boolean>>({});
-
-  const fractional: FractionalSettings = {
-    globalFractionalAllowed,
-    perStockOverrides,
-  };
-
-  // The global toggle always controls every card - flipping it wipes
-  // out any per-stock overrides so every card snaps back to matching
-  // it, rather than leaving a previously-overridden card stuck. See
-  // design.md's "global fractional-shares toggle always overwrites
-  // every per-stock override" decision.
-  function handleGlobalFractionalAllowedChange(value: boolean) {
-    setGlobalFractionalAllowed(value);
-    setPerStockOverrides({});
-  }
-
-  return (
-    <div className="flex h-screen">
-      <div className="w-1/4 min-w-64 border-r border-border p-8">
-        <h1 className="mb-6 text-2xl font-semibold">Stock Allocation</h1>
-        <AllocationControls
-          dollarAmount={dollarAmount}
-          onDollarAmountChange={setDollarAmount}
-          n={n}
-          maxN={SAMPLE_STOCKS.length}
-          onNChange={setN}
-          model={model}
-          onModelChange={setModel}
-          globalFractionalAllowed={globalFractionalAllowed}
-          onGlobalFractionalAllowedChange={handleGlobalFractionalAllowedChange}
-          cashHandlingStrategy={cashHandlingStrategy}
-          onCashHandlingStrategyChange={setCashHandlingStrategy}
-          onAllocate={(values) => console.log("allocate", values)}
-        />
-      </div>
-      <div className="w-3/4 overflow-y-auto p-8">
-        <StockGrid
-          stocks={SAMPLE_STOCKS.slice(0, n)}
-          n={n}
-          fractional={fractional}
-          onFractionalOverrideChange={(symbol, allowed) =>
-            setPerStockOverrides((prev) => ({ ...prev, [symbol]: allowed }))
-          }
-        />
-      </div>
-    </div>
-  );
+  return <AllocationPage stocks={SAMPLE_STOCKS} />;
 }
 
 export default App;

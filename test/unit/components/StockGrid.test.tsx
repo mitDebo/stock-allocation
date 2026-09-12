@@ -60,3 +60,49 @@ describe("StockGrid", () => {
     expect(screen.queryByRole("switch")).not.toBeInTheDocument();
   });
 });
+
+describe("StockGrid - allocation results", () => {
+  it("passes each stock's own result and bought state through to its card", () => {
+    render(
+      <StockGrid
+        {...baseProps({
+          stocks: [stock("AAA", { last: 10 }), stock("BBB", { last: 10 })],
+          results: {
+            perStock: [
+              { symbol: "AAA", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+              { symbol: "BBB", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+            ],
+            leftoverCash: 0,
+          },
+          boughtSymbols: ["AAA"],
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: /mark aaa as bought/i })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /mark bbb as bought/i })).not.toBeChecked();
+  });
+
+  it("reports a bought change for the right stock via onBoughtChange", async () => {
+    const onBoughtChange = vi.fn();
+    render(
+      <StockGrid
+        {...baseProps({
+          stocks: [stock("AAA", { last: 10 })],
+          results: {
+            perStock: [
+              { symbol: "AAA", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+            ],
+            leftoverCash: 0,
+          },
+          boughtSymbols: [],
+          onBoughtChange,
+        })}
+      />,
+    );
+
+    screen.getByRole("checkbox", { name: /mark aaa as bought/i }).click();
+
+    expect(onBoughtChange).toHaveBeenCalledWith("AAA", true);
+  });
+});

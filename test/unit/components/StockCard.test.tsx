@@ -77,3 +77,56 @@ describe("StockCard - pre-allocation view", () => {
     expect(onFractionalAllowedChange).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("StockCard - post-allocation view", () => {
+  it("shows the exact share count and dollar amount as text once a result is provided", () => {
+    render(
+      <StockCard
+        {...baseProps({
+          stock: stock({ symbol: "AAPL", last: 10 }),
+          result: {
+            symbol: "AAPL",
+            dollarTarget: 100,
+            shares: 10,
+            dollarsInvested: 100,
+            fractionalAllowed: true,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByText(/10 shares/i)).toBeInTheDocument();
+    expect(screen.getByText(/\$100\.00/)).toBeInTheDocument();
+  });
+
+  it("renders a 'mark as bought' checkbox reflecting the current bought state", () => {
+    render(
+      <StockCard
+        {...baseProps({
+          result: { symbol: "AAPL", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+          bought: true,
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("checkbox", { name: /mark aapl as bought/i })).toBeChecked();
+  });
+
+  it("reports a change via onBoughtChange when the checkbox is toggled", async () => {
+    const user = userEvent.setup();
+    const onBoughtChange = vi.fn();
+    render(
+      <StockCard
+        {...baseProps({
+          result: { symbol: "AAPL", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+          bought: false,
+          onBoughtChange,
+        })}
+      />,
+    );
+
+    await user.click(screen.getByRole("checkbox", { name: /mark aapl as bought/i }));
+
+    expect(onBoughtChange).toHaveBeenCalledWith(true);
+  });
+});
