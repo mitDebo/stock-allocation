@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { CardStack } from "@/components/CardStack";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -17,14 +19,19 @@ export interface StockCardProps {
   /** Only meaningful once `result` is present. */
   bought?: boolean;
   onBoughtChange?: (bought: boolean) => void;
+  /** An optional drag handle, rendered inline right beside the ticker.
+   * StockCard doesn't know or care what it is (SortableStockCard is
+   * what actually builds it) - it just needs to render inside the same
+   * content CardStack wraps, so it visually rises together with the
+   * card during the reveal animation instead of floating separately. */
+  dragHandle?: ReactNode;
 }
 
 // One card per stock - one component with a conditional (per design.md),
 // not two separate components, since almost all of the layout is shared.
-// The post-allocation branch here is intentionally minimal for now (plain
-// text share count/dollar amount, a bare checkbox) - section 6 replaces
-// the share-count line with the animated CardStack and swaps the bare
-// checkbox for a styled one, without changing what's asserted on here.
+// The post-allocation branch wraps its whole content in CardStack, which
+// wraps rather than embeds so the card itself never resizes as backing
+// cards stack up behind it.
 export function StockCard({
   stock,
   fractionalAllowed,
@@ -32,33 +39,37 @@ export function StockCard({
   result,
   bought = false,
   onBoughtChange,
+  dragHandle,
 }: StockCardProps) {
   if (result) {
     return (
-      <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
-        <div className="flex items-baseline justify-between">
-          <span className="text-base font-semibold">{stock.symbol}</span>
-          <span className="text-sm text-muted-foreground">
-            ${stock.last.toFixed(2)}
-          </span>
+      <CardStack shares={result.shares}>
+        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+          <div className="flex items-baseline justify-between">
+            <span className="flex items-center gap-1.5">
+              {dragHandle}
+              <span className="text-base font-semibold">{stock.symbol}</span>
+            </span>
+            <span className="text-sm text-muted-foreground">
+              ${stock.last.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="text-sm">
+            {formatShares(result.shares)} shares (${result.dollarsInvested.toFixed(2)})
+          </div>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={bought}
+              onChange={(event) => onBoughtChange?.(event.target.checked)}
+              aria-label={`Mark ${stock.symbol} as bought`}
+            />
+            Bought
+          </label>
         </div>
-
-        <CardStack shares={result.shares} />
-
-        <div className="text-sm">
-          {formatShares(result.shares)} shares (${result.dollarsInvested.toFixed(2)})
-        </div>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={bought}
-            onChange={(event) => onBoughtChange?.(event.target.checked)}
-            aria-label={`Mark ${stock.symbol} as bought`}
-          />
-          Bought
-        </label>
-      </div>
+      </CardStack>
     );
   }
 
@@ -68,7 +79,10 @@ export function StockCard({
   return (
     <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
       <div className="flex items-baseline justify-between">
-        <span className="text-base font-semibold">{stock.symbol}</span>
+        <span className="flex items-center gap-1.5">
+          {dragHandle}
+          <span className="text-base font-semibold">{stock.symbol}</span>
+        </span>
         <span className="text-sm text-muted-foreground">
           ${stock.last.toFixed(2)}
         </span>

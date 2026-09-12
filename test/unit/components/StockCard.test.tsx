@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { StockCard } from "../../../src/components/StockCard";
 import type { StockCardProps } from "../../../src/components/StockCard";
 import type { SourceStock } from "../../../src/lib/allocate";
@@ -78,6 +78,44 @@ describe("StockCard - pre-allocation view", () => {
   });
 });
 
+describe("StockCard - drag handle", () => {
+  // The handle needs to live inline with the ticker (not float as a
+  // separate overlay), and specifically inside the post-allocation
+  // content that CardStack's front card wraps - otherwise it doesn't
+  // rise with the card during the reveal animation. This just confirms
+  // StockCard actually renders whatever handle it's given, in both
+  // views; the visual "does it move with the card" check is manual
+  // (same as the animation itself).
+  it("renders a provided dragHandle before allocation", () => {
+    render(
+      <StockCard
+        {...baseProps({ dragHandle: <span data-testid="handle">::</span> })}
+      />,
+    );
+
+    expect(screen.getByTestId("handle")).toBeInTheDocument();
+  });
+
+  it("renders a provided dragHandle after allocation, inside the CardStack-wrapped content", () => {
+    render(
+      <StockCard
+        {...baseProps({
+          dragHandle: <span data-testid="handle">::</span>,
+          result: { symbol: "AAPL", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId("handle")).toBeInTheDocument();
+  });
+
+  it("renders nothing extra when no dragHandle is given", () => {
+    render(<StockCard {...baseProps()} />);
+
+    expect(screen.queryByTestId("handle")).not.toBeInTheDocument();
+  });
+});
+
 describe("StockCard - post-allocation view", () => {
   it("shows the exact share count and dollar amount as text once a result is provided", () => {
     render(
@@ -132,6 +170,18 @@ describe("StockCard - post-allocation view", () => {
 });
 
 describe("StockCard - post-allocation view with a capped share count", () => {
+  // CardStack slides its backing cards in progressively (one per
+  // round, on a timer) rather than all at once - fake timers let us
+  // fast-forward past that reveal so we can assert on the settled
+  // stack, deterministically.
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("shows the exact share count as text even when the visual stack is capped", () => {
     render(
       <StockCard
@@ -150,12 +200,20 @@ describe("StockCard - post-allocation view with a capped share count", () => {
     // The exact figure is always shown as text, regardless of the
     // visual stack's cap.
     expect(screen.getByText(/40 shares/i)).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(10 * 150);
+    });
+
     // The visual stack itself never renders more than the cap's worth
-    // of cards - see src/lib/card-schedule.ts.
-    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(6);
+    // of cards - see src/lib/card-schedule.ts. The front card (the
+    // StockCard's own content) is the 1st card of the cap and isn't
+    // counted as a "card-stack-card", so a cap of 6 leaves 5 backing
+    // cards.
+    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(5);
   });
 
-  it("renders exactly one card per share when under the cap", () => {
+  it("renders one backing card per share (beyond the front card) when under the cap", () => {
     render(
       <StockCard
         {...baseProps({
@@ -170,6 +228,10 @@ describe("StockCard - post-allocation view with a capped share count", () => {
       />,
     );
 
-    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(3);
+    act(() => {
+      vi.advanceTimersByTime(10 * 150);
+    });
+
+    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(2);
   });
 });
