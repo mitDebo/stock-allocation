@@ -61,6 +61,43 @@ describe("StockGrid", () => {
   });
 });
 
+describe("StockGrid - draggable cards", () => {
+  // Reordering itself (a real pointer-drag gesture) is covered by
+  // useStockOrder's own unit tests plus a manual browser check (see
+  // design.md and tasks.md 8) - jsdom can't meaningfully simulate
+  // dnd-kit's pointer sensors. This just confirms every card is
+  // actually reachable by drag.
+  it("renders a drag handle for every card, purely cosmetic reordering, before allocation", () => {
+    render(
+      <StockGrid
+        {...baseProps({ stocks: [stock("AAA"), stock("BBB"), stock("CCC")], n: 3 })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /drag to reorder aaa/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /drag to reorder bbb/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /drag to reorder ccc/i })).toBeInTheDocument();
+  });
+
+  it("renders a drag handle for every card once results exist too", () => {
+    render(
+      <StockGrid
+        {...baseProps({
+          stocks: [stock("AAA", { last: 10 })],
+          results: {
+            perStock: [
+              { symbol: "AAA", dollarTarget: 100, shares: 10, dollarsInvested: 100, fractionalAllowed: true },
+            ],
+            leftoverCash: 0,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: /drag to reorder aaa/i })).toBeInTheDocument();
+  });
+});
+
 describe("StockGrid - allocation results", () => {
   it("passes each stock's own result and bought state through to its card", () => {
     render(
