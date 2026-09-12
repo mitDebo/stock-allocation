@@ -21,3 +21,7 @@ src/data/stocks.json
 # delivering a file from a session (e.g. the real-data validation sample
 # from earlier this project) - never a project file, never committed.
 Claude outputs/
+
+# Claude Code project-local config (slash commands, skills) - a personal
+# tooling setup, not part of the shipped project.
+.claude/

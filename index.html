@@ -8,20 +8,6 @@
   <body>
     <div id="root"></div>
 
-    <!--
-      Hidden bot-tarpit honeypot link (openspec: bot-tarpit-link).
-      Lives here in the static HTML - not inside the React app - so it is
-      present even when the page is fetched without executing any
-      JavaScript (this is a client-rendered SPA; anything React mounts
-      into #root would NOT appear in that raw fetch).
-
-      Hidden from real users three ways at once: the inline style is the
-      standard "visually hidden" technique (off-screen, zero-size,
-      clipped) rather than display:none, so it stays discoverable in raw
-      markup; aria-hidden="true" keeps screen readers from announcing it;
-      tabindex="-1" keeps keyboard users from tabbing to it. See
-      public/robots.txt for the accompanying crawler-facing exclusion.
-    -->
     <a
       href="https://tarpit.kdubs.tech"
       rel="nofollow"
