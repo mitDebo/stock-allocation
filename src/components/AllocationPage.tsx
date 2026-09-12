@@ -11,7 +11,11 @@ import type {
   WeightingModel,
 } from "@/lib/allocate";
 import { selectTopN } from "@/lib/select-top-n";
-import { loadAllocationState, saveAllocationState } from "@/lib/allocation-storage";
+import {
+  clearAllocationState,
+  loadAllocationState,
+  saveAllocationState,
+} from "@/lib/allocation-storage";
 import type { PersistedAllocationInputs } from "@/lib/allocation-storage";
 
 export interface AllocationPageProps {
@@ -22,6 +26,9 @@ export interface AllocationPageProps {
 
 const DEFAULT_DOLLAR_AMOUNT = 1000;
 const DEFAULT_N = 10;
+const DEFAULT_MODEL: WeightingModel = "equal";
+const DEFAULT_GLOBAL_FRACTIONAL_ALLOWED = true;
+const DEFAULT_CASH_HANDLING_STRATEGY: CashHandlingStrategy = "maximizeInvested";
 
 // The only component that holds state (design.md) and reads/writes
 // localStorage. Renders the two panes and wires them together: left-pane
@@ -40,15 +47,17 @@ export function AllocationPage({ stocks }: AllocationPageProps) {
   const [n, setN] = useState(
     persisted?.inputs.n ?? Math.min(DEFAULT_N, stocks.length),
   );
-  const [model, setModel] = useState<WeightingModel>(persisted?.inputs.model ?? "equal");
+  const [model, setModel] = useState<WeightingModel>(
+    persisted?.inputs.model ?? DEFAULT_MODEL,
+  );
   const [globalFractionalAllowed, setGlobalFractionalAllowed] = useState(
-    persisted?.inputs.fractional.globalFractionalAllowed ?? true,
+    persisted?.inputs.fractional.globalFractionalAllowed ?? DEFAULT_GLOBAL_FRACTIONAL_ALLOWED,
   );
   const [perStockOverrides, setPerStockOverrides] = useState<Record<string, boolean>>(
     persisted?.inputs.fractional.perStockOverrides ?? {},
   );
   const [cashHandlingStrategy, setCashHandlingStrategy] = useState<CashHandlingStrategy>(
-    persisted?.inputs.cashHandlingStrategy ?? "maximizeInvested",
+    persisted?.inputs.cashHandlingStrategy ?? DEFAULT_CASH_HANDLING_STRATEGY,
   );
   const [results, setResults] = useState<AllocationResult | null>(
     persisted?.results ?? null,
@@ -154,6 +163,29 @@ export function AllocationPage({ stocks }: AllocationPageProps) {
     }
   }
 
+  // Destructive - wipes the saved blob and puts every input back to the
+  // same defaults used when there's nothing persisted at all. Confirmed
+  // via the browser's native confirm() before anything happens; a
+  // decline leaves the page completely untouched (see design.md).
+  function handleReset() {
+    const confirmed = window.confirm(
+      "Reset all inputs and clear your saved allocation?",
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    clearAllocationState();
+    setDollarAmount(DEFAULT_DOLLAR_AMOUNT);
+    setN(Math.min(DEFAULT_N, stocks.length));
+    setModel(DEFAULT_MODEL);
+    setGlobalFractionalAllowed(DEFAULT_GLOBAL_FRACTIONAL_ALLOWED);
+    setPerStockOverrides({});
+    setCashHandlingStrategy(DEFAULT_CASH_HANDLING_STRATEGY);
+    setResults(null);
+    setBoughtSymbols([]);
+  }
+
   const topNStocks = selectTopN(stocks, n);
 
   return (
@@ -173,6 +205,7 @@ export function AllocationPage({ stocks }: AllocationPageProps) {
           cashHandlingStrategy={cashHandlingStrategy}
           onCashHandlingStrategyChange={handleCashHandlingStrategyChange}
           onAllocate={handleAllocate}
+          onReset={handleReset}
         />
       </div>
       <div className="w-3/4 overflow-y-auto p-8">

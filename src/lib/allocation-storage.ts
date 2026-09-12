@@ -70,3 +70,18 @@ export function clearAllocationResults(
     boughtSymbols: [],
   };
 }
+
+/**
+ * Removes the saved blob entirely - used by the Reset button, which
+ * puts every input back to its default rather than just clearing
+ * results, so there's nothing worth keeping in storage at all. Same
+ * defensive try/catch as save/load: storage access can fail, and this
+ * should degrade to a no-op rather than throw.
+ */
+export function clearAllocationState(): void {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch {
+    // Storage unavailable - degrade to "no persistence" silently.
+  }
+}

@@ -23,6 +23,7 @@ function baseProps(
     cashHandlingStrategy: "maximizeInvested",
     onCashHandlingStrategyChange: vi.fn(),
     onAllocate: vi.fn(),
+    onReset: vi.fn(),
     ...overrides,
   };
 }
@@ -196,5 +197,18 @@ describe("AllocationControls - Allocate button", () => {
       globalFractionalAllowed: false,
       cashHandlingStrategy: "simple",
     });
+  });
+});
+
+
+describe("AllocationControls - Reset button", () => {
+  it("calls onReset when clicked", async () => {
+    const user = userEvent.setup();
+    const onReset = vi.fn();
+    render(<AllocationControls {...baseProps({ onReset })} />);
+
+    await user.click(screen.getByRole("button", { name: /reset/i }));
+
+    expect(onReset).toHaveBeenCalledTimes(1);
   });
 });

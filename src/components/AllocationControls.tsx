@@ -61,6 +61,11 @@ export interface AllocationControlsProps {
     globalFractionalAllowed: boolean;
     cashHandlingStrategy: CashHandlingStrategy;
   }) => void;
+  /** Wipes the saved allocation and puts every input back to its
+   * default. AllocationControls doesn't know or care what "reset" means
+   * beyond calling this - the confirmation prompt and the actual reset
+   * both live in AllocationPage, which owns the state. */
+  onReset: () => void;
 }
 
 // The left pane. Fully controlled - every value it shows comes in via
@@ -79,6 +84,7 @@ export function AllocationControls({
   cashHandlingStrategy,
   onCashHandlingStrategyChange,
   onAllocate,
+  onReset,
 }: AllocationControlsProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -197,6 +203,10 @@ export function AllocationControls({
         }
       >
         Allocate
+      </Button>
+
+      <Button type="button" variant="outline" onClick={onReset}>
+        Reset
       </Button>
     </div>
   );

@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AllocationPage } from "../../../src/components/AllocationPage";
-import { saveAllocationState } from "../../../src/lib/allocation-storage";
+import { loadAllocationState, saveAllocationState } from "../../../src/lib/allocation-storage";
 import type { SourceStock } from "../../../src/lib/allocate";
 
 function stock(symbol: string, overrides: Partial<SourceStock> = {}): SourceStock {
@@ -127,5 +127,63 @@ describe("AllocationPage - restoring persisted state", () => {
     expect(screen.getAllByText(/10 shares/i)).toHaveLength(3);
     expect(screen.getByRole("checkbox", { name: /mark aaa as bought/i })).toBeChecked();
     expect(screen.getByRole("checkbox", { name: /mark bbb as bought/i })).not.toBeChecked();
+  });
+});
+
+
+describe("AllocationPage - Reset button", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("resets every input to its default and clears results/bought once the user confirms", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<AllocationPage stocks={STOCKS} />);
+
+    fireEvent.change(screen.getByLabelText(/dollar amount/i), {
+      target: { value: "300" },
+    });
+    await user.click(screen.getByRole("button", { name: /allocate/i }));
+    await user.click(screen.getAllByRole("checkbox")[0]);
+
+    await user.click(screen.getByRole("button", { name: /reset/i }));
+
+    expect(window.confirm).toHaveBeenCalledTimes(1);
+    expect(screen.getByLabelText(/dollar amount/i)).toHaveValue(1000);
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("clears the saved blob from storage once the user confirms", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<AllocationPage stocks={STOCKS} />);
+
+    fireEvent.change(screen.getByLabelText(/dollar amount/i), {
+      target: { value: "300" },
+    });
+    await user.click(screen.getByRole("button", { name: /allocate/i }));
+
+    await user.click(screen.getByRole("button", { name: /reset/i }));
+
+    expect(loadAllocationState()).toBeNull();
+  });
+
+  it("leaves every input, the results, and the bought set untouched when the user declines", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(false);
+    const user = userEvent.setup();
+    render(<AllocationPage stocks={STOCKS} />);
+
+    fireEvent.change(screen.getByLabelText(/dollar amount/i), {
+      target: { value: "300" },
+    });
+    await user.click(screen.getByRole("button", { name: /allocate/i }));
+    await user.click(screen.getAllByRole("checkbox")[0]);
+
+    await user.click(screen.getByRole("button", { name: /reset/i }));
+
+    expect(screen.getByLabelText(/dollar amount/i)).toHaveValue(300);
+    expect(screen.getAllByRole("checkbox")).toHaveLength(3);
+    expect(screen.getAllByRole("checkbox")[0]).toBeChecked();
   });
 });

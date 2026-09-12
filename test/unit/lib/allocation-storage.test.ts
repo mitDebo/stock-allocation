@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   clearAllocationResults,
+  clearAllocationState,
   loadAllocationState,
   saveAllocationState,
   type PersistedAllocationState,
@@ -90,5 +91,34 @@ describe("clearAllocationResults", () => {
     // The original object passed in is left alone - this is a pure
     // transform, not a mutation.
     expect(state.results).not.toBeNull();
+  });
+});
+
+
+describe("clearAllocationState", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("removes a previously saved blob entirely", () => {
+    saveAllocationState(sampleState());
+
+    clearAllocationState();
+
+    expect(loadAllocationState()).toBeNull();
+  });
+
+  it("does not throw when nothing has been saved yet", () => {
+    expect(() => clearAllocationState()).not.toThrow();
+  });
+
+  it("does not throw when storage access itself fails", () => {
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("storage blocked");
+    });
+
+    expect(() => clearAllocationState()).not.toThrow();
+
+    vi.restoreAllMocks();
   });
 });
