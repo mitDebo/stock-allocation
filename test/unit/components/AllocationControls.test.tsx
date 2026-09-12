@@ -23,7 +23,6 @@ function baseProps(
     cashHandlingStrategy: "maximizeInvested",
     onCashHandlingStrategyChange: vi.fn(),
     onAllocate: vi.fn(),
-    onReset: vi.fn(),
     ...overrides,
   };
 }
@@ -201,14 +200,12 @@ describe("AllocationControls - Allocate button", () => {
 });
 
 
-describe("AllocationControls - Reset button", () => {
-  it("calls onReset when clicked", async () => {
-    const user = userEvent.setup();
-    const onReset = vi.fn();
-    render(<AllocationControls {...baseProps({ onReset })} />);
+describe("AllocationControls - no persistence", () => {
+  // Kdubs decided every page load should start completely fresh - see
+  // design.md - so there's nothing left for a Reset button to do.
+  it("renders no Reset button", () => {
+    render(<AllocationControls {...baseProps()} />);
 
-    await user.click(screen.getByRole("button", { name: /reset/i }));
-
-    expect(onReset).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: /reset/i })).not.toBeInTheDocument();
   });
 });
