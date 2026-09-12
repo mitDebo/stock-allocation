@@ -2,12 +2,12 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { parseStockList } from "../../scripts/lib/parse-stock-list.js";
+import { parseStockList } from "../../../../scripts/lib/parse-stock-list.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const fixtureHtml = readFileSync(
-  path.join(__dirname, "../fixtures/stocks-list.html"),
+  path.join(__dirname, "../../../fixtures/stocks-list.html"),
   "utf-8",
 );
 

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { generateStockData } from "../../scripts/generate-stock-data.js";
+import { generateStockData } from "../../../scripts/generate-stock-data.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // single-cell layout table first, then the real data table with the same
 // 13 columns in the same order, same link-wrapped Symbol/slope cells.
 const fixtureHtml = readFileSync(
-  path.join(__dirname, "../fixtures/stocks-list.html"),
+  path.join(__dirname, "../../fixtures/stocks-list.html"),
   "utf-8",
 );
 

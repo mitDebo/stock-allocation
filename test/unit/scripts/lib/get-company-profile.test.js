@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { getCompanyProfile } from "../../scripts/lib/get-company-profile.js";
+import { getCompanyProfile } from "../../../../scripts/lib/get-company-profile.js";
 
 function fakeFetchResponse(body) {
   return { json: async () => body };

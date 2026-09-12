@@ -13,30 +13,16 @@ export default defineConfig({
     },
   },
   test: {
-    // environmentMatchGlobs (a single `environment` + per-glob overrides)
-    // was deprecated back in Vitest 3 - current Vitest configures this via
-    // `projects` instead: each project is its own independent test run
-    // with its own `include`/`environment`, sharing this same Vite config.
-    projects: [
-      {
-        // The plain-Node data-generation script's tests (section 2-3) -
-        // no DOM needed.
-        test: {
-          name: "node",
-          environment: "node",
-          include: ["test/**/*.test.{js,ts}"],
-        },
-      },
-      {
-        // React component tests (section 4.3+) - needs jsdom to provide
-        // `document`, plus the jest-dom matchers setup file.
-        test: {
-          name: "jsdom",
-          environment: "jsdom",
-          include: ["src/**/*.test.{ts,tsx}"],
-          setupFiles: ["./src/test-setup.ts"],
-        },
-      },
-    ],
+    // Every test file lives under test/ now (unit tests and integration
+    // tests alike, no more co-locating a test next to the source file it
+    // covers), so there's no longer a need to split tests into separate
+    // "projects" by directory. jsdom is a superset of plain Node (every
+    // normal Node global is still there - jsdom just adds document/
+    // window on top), so one environment covers both the plain
+    // calculation-engine/script tests and the React component tests with
+    // no real downside, and no test file's location has to line up with
+    // any environment-matching config.
+    environment: "jsdom",
+    setupFiles: ["./test/setup.ts"],
   },
 });
