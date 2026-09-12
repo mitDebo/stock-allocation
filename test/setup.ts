@@ -42,3 +42,21 @@ if (typeof globalThis.ResizeObserver === "undefined") {
     disconnect() {}
   };
 }
+
+// jsdom doesn't implement window.matchMedia at all. Motion (CardStack's
+// entrance animation) checks prefers-reduced-motion internally, and
+// calling code that isn't expecting `undefined` back throws - a fixed
+// "no preference" stub is enough to keep that check harmless in tests.
+if (typeof window !== "undefined" && !window.matchMedia) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }) as MediaQueryList;
+}
