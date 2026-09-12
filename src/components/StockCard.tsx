@@ -1,3 +1,4 @@
+import { CardStack } from "@/components/CardStack";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import type { SourceStock, StockAllocationResult } from "@/lib/allocate";
@@ -41,6 +42,8 @@ export function StockCard({
             ${stock.last.toFixed(2)}
           </span>
         </div>
+
+        <CardStack shares={result.shares} />
 
         <div className="text-sm">
           {formatShares(result.shares)} shares (${result.dollarsInvested.toFixed(2)})

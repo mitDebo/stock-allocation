@@ -130,3 +130,46 @@ describe("StockCard - post-allocation view", () => {
     expect(onBoughtChange).toHaveBeenCalledWith(true);
   });
 });
+
+describe("StockCard - post-allocation view with a capped share count", () => {
+  it("shows the exact share count as text even when the visual stack is capped", () => {
+    render(
+      <StockCard
+        {...baseProps({
+          result: {
+            symbol: "AAPL",
+            dollarTarget: 400,
+            shares: 40,
+            dollarsInvested: 400,
+            fractionalAllowed: true,
+          },
+        })}
+      />,
+    );
+
+    // The exact figure is always shown as text, regardless of the
+    // visual stack's cap.
+    expect(screen.getByText(/40 shares/i)).toBeInTheDocument();
+    // The visual stack itself never renders more than the cap's worth
+    // of cards - see src/lib/card-schedule.ts.
+    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(6);
+  });
+
+  it("renders exactly one card per share when under the cap", () => {
+    render(
+      <StockCard
+        {...baseProps({
+          result: {
+            symbol: "AAPL",
+            dollarTarget: 30,
+            shares: 3,
+            dollarsInvested: 30,
+            fractionalAllowed: true,
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getAllByTestId("card-stack-card")).toHaveLength(3);
+  });
+});
