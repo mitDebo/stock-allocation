@@ -1,4 +1,19 @@
+import { writeFile as fsWriteFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+
 import { parseStockList } from "./lib/parse-stock-list.js";
+import { getCompanyProfile as realGetCompanyProfile } from "./lib/get-company-profile.js";
+
+const DEFAULT_SOURCE_URL = "https://stocks.jseeeweaver.cc";
+
+// Computed lazily (only when actually called, via the default parameter
+// below) rather than as a module-level constant - constructing this from
+// import.meta.url at module-load time would run on every import,
+// including when the test suite merely imports this file, which isn't
+// safe to do outside a real CLI invocation.
+function getDefaultOutputPath() {
+  return fileURLToPath(new URL("../src/data/stocks.json", import.meta.url));
+}
 
 /**
  * Produces the full enriched stock data array: parses the source page's
@@ -9,9 +24,8 @@ import { parseStockList } from "./lib/parse-stock-list.js";
  * already-fetched HTML and an injected profile lookup rather than doing
  * any network I/O itself, so it can be exercised with fixtures (see the
  * integration test) instead of hitting stocks.jseeeweaver.cc or Finnhub
- * for real. The CLI entry point that does the real fetching and writes
- * the result to a file is added in section 6, once the Vite app exists
- * and its expected output path is known.
+ * for real. runGenerateStockData, below, is the real I/O wrapper around
+ * this.
  *
  * @param {object} options
  * @param {string} options.html - the stocks.jseeeweaver.cc page HTML
@@ -27,4 +41,75 @@ export async function generateStockData({ html, getCompanyProfile }) {
       profile: await getCompanyProfile(stock.symbol),
     })),
   );
+}
+
+/**
+ * The real I/O wrapper around generateStockData: fetches the source
+ * page, enriches it via Finnhub, and writes the result (wrapped with a
+ * generation timestamp) to disk. Every real dependency - fetch, the
+ * Finnhub lookup, writing the file, "what time is it right now" - is
+ * injectable, defaulting to the real thing, so this function's actual
+ * branching logic (a failed fetch, a malformed page, the happy path) is
+ * fully unit-testable with fakes instead of touching the network or
+ * filesystem for real (see design.md). Any failure - a network error, a
+ * non-ok response, or parseStockList's own thrown errors on a malformed
+ * or empty page - simply rejects; it's the CLI guard below that turns a
+ * rejection into a loud, non-zero-exit failure.
+ *
+ * @param {object} options
+ * @param {string} [options.sourceUrl]
+ * @param {string} [options.outputPath]
+ * @param {string} options.apiKey - Finnhub API key
+ * @param {typeof fetch} [options.fetchImpl]
+ * @param {typeof realGetCompanyProfile} [options.getCompanyProfile]
+ * @param {(path: string, contents: string) => Promise<void>} [options.writeFile]
+ * @param {() => string} [options.now]
+ * @returns {Promise<{ generatedAt: string, stocks: Array<object> }>}
+ */
+export async function runGenerateStockData({
+  sourceUrl = DEFAULT_SOURCE_URL,
+  outputPath = getDefaultOutputPath(),
+  apiKey,
+  fetchImpl = fetch,
+  getCompanyProfile = realGetCompanyProfile,
+  writeFile = fsWriteFile,
+  now = () => new Date().toISOString(),
+}) {
+  const response = await fetchImpl(sourceUrl);
+  if (!response.ok) {
+    throw new Error(
+      `runGenerateStockData: failed to fetch ${sourceUrl} - received ${response.status}`,
+    );
+  }
+  const html = await response.text();
+
+  const stocks = await generateStockData({
+    html,
+    getCompanyProfile: (symbol) => getCompanyProfile(symbol, { apiKey, fetchImpl }),
+  });
+
+  const payload = { generatedAt: now(), stocks };
+  await writeFile(outputPath, JSON.stringify(payload, null, 2));
+  return payload;
+}
+
+// The real CLI entry point - only runs when this file is executed
+// directly (e.g. `node scripts/generate-stock-data.js`), not when it's
+// imported by a test. Wires up the one real dependency that isn't
+// already a sensible default above (the Finnhub API key, which only
+// exists as an environment variable) and turns a rejection into a
+// loud, non-zero exit rather than an unhandled promise rejection.
+if (import.meta.url === `file://${process.argv[1]}`) {
+  try {
+    const { generatedAt, stocks } = await runGenerateStockData({
+      apiKey: process.env.FINNHUB_API_KEY,
+    });
+    console.log(
+      `Wrote ${stocks.length} stocks to src/data/stocks.json (generated ${generatedAt})`,
+    );
+  } catch (error) {
+    console.error(error.message ?? error);
+    if (error.cause) console.error("Cause:", error.cause);
+    process.exit(1);
+  }
 }
