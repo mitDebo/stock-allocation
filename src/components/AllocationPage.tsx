@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { AllocationControls } from "@/components/AllocationControls";
+import { DataFreshness } from "@/components/DataFreshness";
 import { StockGrid } from "@/components/StockGrid";
 import { allocate } from "@/lib/allocate";
 import type {
@@ -16,6 +17,10 @@ export interface AllocationPageProps {
   /** The full synced list, already in the source site's rank order -
    * AllocationPage slices it down to the top N for display/allocation. */
   stocks: SourceStock[];
+  /** stocks.json's generatedAt timestamp - optional so existing callers
+   * (and tests) that don't have real generated data still render fine;
+   * the freshness indicator simply doesn't show without it. */
+  generatedAt?: string;
 }
 
 const DEFAULT_DOLLAR_AMOUNT = 1000;
@@ -30,7 +35,7 @@ const DEFAULT_CASH_HANDLING_STRATEGY: CashHandlingStrategy = "maximizeInvested";
 // bought checklist; Allocate runs the calculation engine. Every page
 // load starts completely fresh from these same defaults - nothing here
 // is persisted anywhere (see design.md's "no persistence" decision).
-export function AllocationPage({ stocks }: AllocationPageProps) {
+export function AllocationPage({ stocks, generatedAt }: AllocationPageProps) {
   const [dollarAmount, setDollarAmount] = useState(DEFAULT_DOLLAR_AMOUNT);
   const [n, setN] = useState(Math.min(DEFAULT_N, stocks.length));
   const [model, setModel] = useState<WeightingModel>(DEFAULT_MODEL);
@@ -120,7 +125,10 @@ export function AllocationPage({ stocks }: AllocationPageProps) {
   return (
     <div className="flex h-screen">
       <div className="w-1/4 min-w-64 border-r border-border p-8">
-        <h1 className="mb-6 text-2xl font-semibold">Stock Allocation</h1>
+        <div className="mb-6">
+          <h1 className="text-2xl font-semibold">Stock Allocation</h1>
+          {generatedAt && <DataFreshness generatedAt={generatedAt} />}
+        </div>
         <AllocationControls
           dollarAmount={dollarAmount}
           onDollarAmountChange={handleDollarAmountChange}

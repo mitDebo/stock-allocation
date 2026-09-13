@@ -95,6 +95,20 @@ describe("AllocationPage - editing a left-pane input after results exist", () =>
   });
 });
 
+describe("AllocationPage - data freshness", () => {
+  it("shows the generation date on page load when generatedAt is provided", () => {
+    render(<AllocationPage stocks={STOCKS} generatedAt="2026-09-12T00:00:00.000Z" />);
+
+    expect(screen.getByText(/September 12, 2026/)).toBeInTheDocument();
+  });
+
+  it("renders fine with no freshness indicator when generatedAt is omitted", () => {
+    render(<AllocationPage stocks={STOCKS} />);
+
+    expect(screen.queryByTestId("data-freshness")).not.toBeInTheDocument();
+  });
+});
+
 describe("AllocationPage - no persistence", () => {
   // Kdubs decided every page load should start completely fresh (see
   // design.md) - so AllocationPage should never read from or write to
