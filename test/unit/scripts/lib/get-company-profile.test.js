@@ -2,7 +2,21 @@ import { describe, it, expect, vi } from "vitest";
 import { getCompanyProfile } from "../../../../scripts/lib/get-company-profile.js";
 
 function fakeFetchResponse(body) {
-  return { json: async () => body };
+  return { ok: true, json: async () => body };
+}
+
+function fakeFailedFetchResponse(status) {
+  return {
+    ok: false,
+    status,
+    // If getCompanyProfile ever calls .json() on a failed response
+    // instead of checking .ok first, this makes that mistake loud and
+    // obvious in the test failure rather than silently returning
+    // something that happens to look plausible.
+    json: async () => {
+      throw new Error("json() should never be called on a failed response");
+    },
+  };
 }
 
 describe("getCompanyProfile", () => {
@@ -42,5 +56,17 @@ describe("getCompanyProfile", () => {
     const result = await getCompanyProfile("BBB", { apiKey: "test-key", fetchImpl });
 
     expect(result).toBeNull();
+  });
+
+  it("throws a clear error when Finnhub returns a non-ok response, without attempting to parse it as JSON", async () => {
+    // Real-world trigger: exceeding Finnhub's free-tier rate limit (or
+    // an outage) can return a non-JSON error page - response.json()
+    // would otherwise throw a cryptic "Unexpected token '<'" instead of
+    // a diagnosable error.
+    const fetchImpl = vi.fn(async () => fakeFailedFetchResponse(429));
+
+    await expect(
+      getCompanyProfile("AAA", { apiKey: "test-key", fetchImpl }),
+    ).rejects.toThrow(/AAA.*429/);
   });
 });

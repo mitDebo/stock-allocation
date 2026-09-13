@@ -20,6 +20,13 @@ const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
 export async function getCompanyProfile(symbol, { apiKey, fetchImpl = fetch }) {
   const url = `${FINNHUB_BASE_URL}/stock/profile2?symbol=${encodeURIComponent(symbol)}&token=${apiKey}`;
   const response = await fetchImpl(url);
+
+  if (!response.ok) {
+    throw new Error(
+      `getCompanyProfile: Finnhub request for ${symbol} failed - received ${response.status}`,
+    );
+  }
+
   const data = await response.json();
 
   return Object.keys(data).length === 0 ? null : data;

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
@@ -128,5 +128,56 @@ describe("generateStockData (integration)", () => {
     await expect(
       generateStockData({ html: malformedHtml, getCompanyProfile: fakeGetCompanyProfile }),
     ).rejects.toThrow(/expected a second <table>/);
+  });
+});
+
+// Builds a synthetic page with more rows than the fixture above, matching
+// the same markup shape parseStockList expects (layout table, then the
+// 13-column data table), so the rate-limiting tests below don't need
+// their own giant checked-in fixture file.
+function buildStockRow(symbol) {
+  return `<tr><td><a href="https://robinhood.com/stocks/${symbol}?source=search">${symbol}</a></td><td style="text-align: right;"><b><a href="${symbol}.png" target="_blank">0.30</a></b></td><td style="text-align: right;">0.35</td><td style="text-align: right;">0.75</td><td style="text-align: right;">20.1</td><td style="text-align: right;">10.00</td><td style="text-align: right;">12.00</td><td style="text-align: right;">9.50</td><td style="text-align: right;">11.00</td><td style="text-align: right;">13.00</td><td style="text-align: right;">2026-08-01</td><td style="text-align: right;">2026-09-01</td><td style="text-align: right;">25</td></tr>`;
+}
+
+function buildManyStocksHtml(count) {
+  const headerRow =
+    "<tr><th>Symbol</th><th>Lower-bound Slope</th><th>Normalized Slope</th>" +
+    "<th>R2</th><th>Percent Growth</th><th>First</th><th>Last</th><th>Min</th>" +
+    "<th>Avg</th><th>Max</th><th>Period Start</th><th>Period Stop</th><th>Investor Grade</th></tr>";
+  const rows = Array.from({ length: count }, (_, i) => buildStockRow(`S${i}`)).join("");
+  return `<html><body><table><tr><td>layout wrapper</td></tr></table><table>${headerRow}${rows}</table></body></html>`;
+}
+
+// Finnhub's free tier caps requests at 60/minute (confirmed via its own
+// rate-limit response headers) - generateStockData has to throttle its
+// Finnhub lookups to stay under that, rather than firing every stock's
+// lookup at once via a single Promise.all (see design.md).
+describe("generateStockData - Finnhub rate limiting", () => {
+  it("processes stocks in batches, delaying between batches rather than firing every lookup at once", async () => {
+    const html = buildManyStocksHtml(120);
+    const getCompanyProfile = vi.fn(async () => null);
+    const delay = vi.fn(async () => {});
+
+    const result = await generateStockData({ html, getCompanyProfile, delay });
+
+    // 120 stocks at a 55-per-batch limit is 3 batches (55 + 55 + 10),
+    // so exactly 2 delays between them - not 0 (which would mean no
+    // throttling happened at all) and not 119 (one per stock).
+    expect(delay).toHaveBeenCalledTimes(2);
+    // Comfortably over Finnhub's 60-second rate-limit window, so
+    // consecutive batches never land in the same window.
+    expect(delay).toHaveBeenCalledWith(61_000);
+    expect(getCompanyProfile).toHaveBeenCalledTimes(120);
+    expect(result).toHaveLength(120);
+  });
+
+  it("does not delay at all when everything fits in a single batch", async () => {
+    const html = buildManyStocksHtml(10);
+    const getCompanyProfile = vi.fn(async () => null);
+    const delay = vi.fn(async () => {});
+
+    await generateStockData({ html, getCompanyProfile, delay });
+
+    expect(delay).not.toHaveBeenCalled();
   });
 });

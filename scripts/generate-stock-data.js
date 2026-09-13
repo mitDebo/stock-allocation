@@ -15,10 +15,28 @@ function getDefaultOutputPath() {
   return fileURLToPath(new URL("../src/data/stocks.json", import.meta.url));
 }
 
+// Finnhub's free tier caps requests at 60/minute (confirmed via its own
+// rate-limit response headers — see design.md). BATCH_SIZE stays
+// comfortably under that so one batch's worth of concurrent requests
+// never trips the limit on its own; BATCH_DELAY_MS is comfortably over
+// Finnhub's 60-second window so consecutive batches never both land
+// inside the same window.
+const BATCH_SIZE = 55;
+const BATCH_DELAY_MS = 61_000;
+
+function defaultDelay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 /**
  * Produces the full enriched stock data array: parses the source page's
  * HTML into raw stock stats (preserving its existing rank order), then
  * looks up each stock's Finnhub company profile and attaches it.
+ *
+ * Finnhub lookups are throttled in batches (see BATCH_SIZE/
+ * BATCH_DELAY_MS above) rather than fired all at once via a single
+ * Promise.all — the source list can have well over 60 stocks, and
+ * Finnhub's free tier only allows 60 requests/minute.
  *
  * This is the testable core of the data-generation script — it takes
  * already-fetched HTML and an injected profile lookup rather than doing
@@ -30,17 +48,30 @@ function getDefaultOutputPath() {
  * @param {object} options
  * @param {string} options.html - the stocks.jseeeweaver.cc page HTML
  * @param {(symbol: string) => Promise<object|null>} options.getCompanyProfile
+ * @param {(ms: number) => Promise<void>} [options.delay] - injectable for
+ *   testing; defaults to a real setTimeout-based delay.
  * @returns {Promise<Array<object>>}
  */
-export async function generateStockData({ html, getCompanyProfile }) {
+export async function generateStockData({ html, getCompanyProfile, delay = defaultDelay }) {
   const stocks = parseStockList(html);
+  const results = [];
 
-  return Promise.all(
-    stocks.map(async (stock) => ({
-      ...stock,
-      profile: await getCompanyProfile(stock.symbol),
-    })),
-  );
+  for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
+    if (i > 0) {
+      await delay(BATCH_DELAY_MS);
+    }
+
+    const batch = stocks.slice(i, i + BATCH_SIZE);
+    const enrichedBatch = await Promise.all(
+      batch.map(async (stock) => ({
+        ...stock,
+        profile: await getCompanyProfile(stock.symbol),
+      })),
+    );
+    results.push(...enrichedBatch);
+  }
+
+  return results;
 }
 
 /**
