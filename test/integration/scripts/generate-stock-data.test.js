@@ -148,31 +148,34 @@ function buildManyStocksHtml(count) {
   return `<html><body><table><tr><td>layout wrapper</td></tr></table><table>${headerRow}${rows}</table></body></html>`;
 }
 
-// Finnhub's free tier caps requests at 60/minute (confirmed via its own
-// rate-limit response headers) - generateStockData has to throttle its
-// Finnhub lookups to stay under that, rather than firing every stock's
-// lookup at once via a single Promise.all (see design.md).
+// Finnhub's free tier caps requests at 60/minute - but a real CI run
+// showed that even a burst of 55 concurrent requests (comfortably under
+// that per-minute number) is enough to trip a 429, so the fix isn't
+// "batch under 60" - it's "never burst at all". generateStockData
+// processes Finnhub lookups strictly one at a time, with a real delay
+// between each individual request (see design.md).
 describe("generateStockData - Finnhub rate limiting", () => {
-  it("processes stocks in batches, delaying between batches rather than firing every lookup at once", async () => {
-    const html = buildManyStocksHtml(120);
+  it("delays between every individual Finnhub lookup, never firing more than one at a time", async () => {
+    const html = buildManyStocksHtml(5);
     const getCompanyProfile = vi.fn(async () => null);
     const delay = vi.fn(async () => {});
 
     const result = await generateStockData({ html, getCompanyProfile, delay });
 
-    // 120 stocks at a 55-per-batch limit is 3 batches (55 + 55 + 10),
-    // so exactly 2 delays between them - not 0 (which would mean no
-    // throttling happened at all) and not 119 (one per stock).
-    expect(delay).toHaveBeenCalledTimes(2);
-    // Comfortably over Finnhub's 60-second rate-limit window, so
-    // consecutive batches never land in the same window.
-    expect(delay).toHaveBeenCalledWith(61_000);
-    expect(getCompanyProfile).toHaveBeenCalledTimes(120);
-    expect(result).toHaveLength(120);
+    // 5 stocks processed one at a time means a delay before every
+    // lookup after the first - 4 delays, not 0 (no throttling at all)
+    // and not 5 (an unnecessary delay before the very first request).
+    expect(delay).toHaveBeenCalledTimes(4);
+    // ~50 requests/minute - comfortably under Finnhub's 60/minute cap
+    // with no burst, unlike the batched approach that just failed in a
+    // real CI run.
+    expect(delay).toHaveBeenCalledWith(1_200);
+    expect(getCompanyProfile).toHaveBeenCalledTimes(5);
+    expect(result).toHaveLength(5);
   });
 
-  it("does not delay at all when everything fits in a single batch", async () => {
-    const html = buildManyStocksHtml(10);
+  it("does not delay at all for a single stock", async () => {
+    const html = buildManyStocksHtml(1);
     const getCompanyProfile = vi.fn(async () => null);
     const delay = vi.fn(async () => {});
 

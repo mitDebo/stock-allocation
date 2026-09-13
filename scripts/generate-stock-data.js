@@ -16,13 +16,13 @@ function getDefaultOutputPath() {
 }
 
 // Finnhub's free tier caps requests at 60/minute (confirmed via its own
-// rate-limit response headers — see design.md). BATCH_SIZE stays
-// comfortably under that so one batch's worth of concurrent requests
-// never trips the limit on its own; BATCH_DELAY_MS is comfortably over
-// Finnhub's 60-second window so consecutive batches never both land
-// inside the same window.
-const BATCH_SIZE = 55;
-const BATCH_DELAY_MS = 61_000;
+// rate-limit response headers — see design.md). A real CI run showed
+// that even a burst of 55 concurrent requests (well under that
+// per-minute number) is enough to trip a 429 - so batching under the
+// limit isn't sufficient, requests can never burst at all. Processing
+// strictly one at a time with a real delay between each individual
+// request keeps the pace to ~50/minute with zero burst.
+const REQUEST_DELAY_MS = 1_200;
 
 function defaultDelay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -33,10 +33,12 @@ function defaultDelay(ms) {
  * HTML into raw stock stats (preserving its existing rank order), then
  * looks up each stock's Finnhub company profile and attaches it.
  *
- * Finnhub lookups are throttled in batches (see BATCH_SIZE/
- * BATCH_DELAY_MS above) rather than fired all at once via a single
- * Promise.all — the source list can have well over 60 stocks, and
- * Finnhub's free tier only allows 60 requests/minute.
+ * Finnhub lookups are made strictly one at a time, with a real delay
+ * between each one (see REQUEST_DELAY_MS above), rather than fired all
+ * at once via a single Promise.all — the source list can have well
+ * over 60 stocks, and even a burst of concurrent requests well under
+ * Finnhub's 60/minute free-tier cap has been observed to trip its rate
+ * limiting.
  *
  * This is the testable core of the data-generation script — it takes
  * already-fetched HTML and an injected profile lookup rather than doing
@@ -56,19 +58,16 @@ export async function generateStockData({ html, getCompanyProfile, delay = defau
   const stocks = parseStockList(html);
   const results = [];
 
-  for (let i = 0; i < stocks.length; i += BATCH_SIZE) {
+  for (let i = 0; i < stocks.length; i++) {
     if (i > 0) {
-      await delay(BATCH_DELAY_MS);
+      await delay(REQUEST_DELAY_MS);
     }
 
-    const batch = stocks.slice(i, i + BATCH_SIZE);
-    const enrichedBatch = await Promise.all(
-      batch.map(async (stock) => ({
-        ...stock,
-        profile: await getCompanyProfile(stock.symbol),
-      })),
-    );
-    results.push(...enrichedBatch);
+    const stock = stocks[i];
+    results.push({
+      ...stock,
+      profile: await getCompanyProfile(stock.symbol),
+    });
   }
 
   return results;
