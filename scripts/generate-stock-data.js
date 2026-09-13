@@ -1,5 +1,6 @@
-import { writeFile as fsWriteFile } from "node:fs/promises";
+import { writeFile as fsWriteFile, mkdir as fsMkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 
 import { parseStockList } from "./lib/parse-stock-list.js";
 import { getCompanyProfile as realGetCompanyProfile } from "./lib/get-company-profile.js";
@@ -93,6 +94,11 @@ export async function generateStockData({ html, getCompanyProfile, delay = defau
  * @param {typeof fetch} [options.fetchImpl]
  * @param {typeof realGetCompanyProfile} [options.getCompanyProfile]
  * @param {(path: string, contents: string) => Promise<void>} [options.writeFile]
+ * @param {(path: string, options: { recursive: boolean }) => Promise<void>} [options.mkdir] -
+ *   a fresh checkout (e.g. a CI runner) has no src/data/ directory at all,
+ *   since stocks.json is gitignored and nothing else lives there to make
+ *   git track the directory itself - so the output directory has to be
+ *   created before writing into it, not assumed to already exist.
  * @param {() => string} [options.now]
  * @returns {Promise<{ generatedAt: string, stocks: Array<object> }>}
  */
@@ -103,6 +109,7 @@ export async function runGenerateStockData({
   fetchImpl = fetch,
   getCompanyProfile = realGetCompanyProfile,
   writeFile = fsWriteFile,
+  mkdir = fsMkdir,
   now = () => new Date().toISOString(),
 }) {
   const response = await fetchImpl(sourceUrl);
@@ -119,6 +126,7 @@ export async function runGenerateStockData({
   });
 
   const payload = { generatedAt: now(), stocks };
+  await mkdir(dirname(outputPath), { recursive: true });
   await writeFile(outputPath, JSON.stringify(payload, null, 2));
   return payload;
 }

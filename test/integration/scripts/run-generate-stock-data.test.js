@@ -104,4 +104,30 @@ describe("runGenerateStockData", () => {
 
     expect(writeFile).not.toHaveBeenCalled();
   });
+
+  // A fresh checkout (e.g. a CI runner) has no src/data/ directory at all -
+  // stocks.json is gitignored, and nothing else lives there to make git
+  // track the directory itself. Discovered via a real CI failure: ENOENT
+  // trying to write a file into a directory that was never created.
+  it("creates the output directory if it doesn't exist yet, before writing the file", async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(fakeOkResponse(fixtureHtml));
+    const writeFile = vi.fn().mockResolvedValue(undefined);
+    const mkdir = vi.fn().mockResolvedValue(undefined);
+
+    await runGenerateStockData({
+      sourceUrl: "https://stocks.jseeeweaver.cc",
+      outputPath: "/tmp/some/nested/dir/stocks.json",
+      apiKey: "fake-key",
+      fetchImpl,
+      getCompanyProfile: fakeGetCompanyProfile,
+      writeFile,
+      mkdir,
+      now: () => "2026-09-12T00:00:00.000Z",
+    });
+
+    expect(mkdir).toHaveBeenCalledWith("/tmp/some/nested/dir", { recursive: true });
+    expect(mkdir.mock.invocationCallOrder[0]).toBeLessThan(
+      writeFile.mock.invocationCallOrder[0],
+    );
+  });
 });
