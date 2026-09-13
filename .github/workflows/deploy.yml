@@ -1,0 +1,85 @@
+name: Build, test, and deploy
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # 10:00 UTC daily - comfortably after the source's ~5pm ET (+8hr,
+    # so as late as ~1am ET) weekday publish window finishes, with
+    # enough buffer to cover both EST and EDT since this cron time is
+    # fixed UTC and doesn't shift with daylight saving (see
+    # specs/stock-data-sync/spec.md).
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE: ghcr.io/mitdebo/stock-allocation:latest
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Staged pipeline, per Kdubs's request: unit tests first (fast,
+      # cheap gate) -> real data + docker build -> integration tests ->
+      # push + deploy. Each step below stops the whole workflow on
+      # failure (the default for a GitHub Actions job's steps), so
+      # nothing after a failing step ever runs.
+
+      - name: Unit tests
+        run: npx vitest run test/unit
+
+      - name: Generate real stock data
+        run: node scripts/generate-stock-data.js
+        env:
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+
+      - name: Build Docker image
+        run: docker build -t "$IMAGE" .
+
+      - name: Integration tests
+        run: npx vitest run test/integration
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push image
+        run: docker push "$IMAGE"
+
+      - name: Copy docker-compose.yml to the droplet
+        uses: appleboy/scp-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/apps/stock-allocation/"
+
+      - name: Deploy on the droplet
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            sudo docker compose -f /opt/apps/stock-allocation/docker-compose.yml pull
+            sudo docker compose -f /opt/apps/stock-allocation/docker-compose.yml up -d

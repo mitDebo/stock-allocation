@@ -7,13 +7,12 @@ RUN npm ci
 
 COPY . .
 
-# TODO(section 6): replace this stub with the real data-generation CLI
-# entry point (a CLI wrapper around scripts/generate-stock-data.js, added
-# in section 6 once Finnhub secrets are wired into CI). Until then this
-# just gives Vite something to bundle so the app shell builds and serves;
-# section 4's own verification only requires the placeholder page, not
-# real stock data.
-RUN mkdir -p src/data && echo '[]' > src/data/stocks.json
+# CI (section 6) generates the real src/data/stocks.json before
+# `docker build` runs and it gets picked up by the `COPY . .` above -
+# so this only creates the placeholder when that hasn't happened
+# (plain local `docker build`, or CI's data-generation step being
+# skipped), rather than unconditionally overwriting whatever's there.
+RUN [ -f src/data/stocks.json ] || (mkdir -p src/data && echo '{"generatedAt": null, "stocks": []}' > src/data/stocks.json)
 
 RUN npm run build
 

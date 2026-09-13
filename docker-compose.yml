@@ -1,0 +1,6 @@
+services:
+  stock-allocation:
+    image: ghcr.io/mitdebo/stock-allocation:latest
+    restart: unless-stopped
+    ports:
+      - "8082:80"
