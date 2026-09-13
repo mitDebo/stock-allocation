@@ -44,7 +44,7 @@ export function StockCard({
   if (result) {
     return (
       <CardStack shares={result.shares}>
-        <div className="flex flex-col gap-3 rounded-2xl border border-border bg-card p-4">
+        <div className="flex aspect-square flex-col justify-between gap-3 rounded-2xl border border-border bg-card p-4">
           <div className="flex items-baseline justify-between">
             <span className="flex items-center gap-1.5">
               {dragHandle}
@@ -77,7 +77,7 @@ export function StockCard({
   const isPositiveGrowth = stock.percentGrowth >= 0;
 
   return (
-    <div className="flex flex-col gap-3 rounded-2xl border border-border p-4">
+    <div className="flex aspect-square flex-col justify-between gap-3 rounded-2xl border border-border p-4">
       <div className="flex items-baseline justify-between">
         <span className="flex items-center gap-1.5">
           {dragHandle}
