@@ -6,7 +6,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:data": "node scripts/generate-stock-data.js"
+    "generate:data": "node scripts/generate-stock-data.js",
+    "generate:data:live": "node scripts/fetch-live-stock-data.js"
   },
   "repository": {
     "type": "git",

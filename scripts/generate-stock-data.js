@@ -16,6 +16,17 @@ function getDefaultOutputPath() {
   return fileURLToPath(new URL("../src/data/stocks.json", import.meta.url));
 }
 
+// public/ is copied verbatim into dist/ by Vite and served as a static
+// file by nginx, so this copy ends up reachable at
+// https://allocations.kdubs.tech/stocks.json - a developer whose home
+// network can't reach stocks.jseeeweaver.cc directly (see design.md) can
+// fetch already-generated real data from there instead of Finnhub (see
+// fetch-live-stock-data.js), rather than being stuck with no real data to
+// work with locally.
+function getDefaultPublicOutputPath() {
+  return fileURLToPath(new URL("../public/stocks.json", import.meta.url));
+}
+
 // Finnhub's free tier caps requests at 60/minute (confirmed via its own
 // rate-limit response headers — see design.md). A real CI run showed
 // that even a burst of 55 concurrent requests (well under that
@@ -93,18 +104,24 @@ export async function generateStockData({ html, getCompanyProfile, delay = defau
  * @param {string} options.apiKey - Finnhub API key
  * @param {typeof fetch} [options.fetchImpl]
  * @param {typeof realGetCompanyProfile} [options.getCompanyProfile]
+ * @param {string} [options.publicOutputPath] - a second copy is written
+ *   here (public/stocks.json by default) so the live site can serve the
+ *   same data as a plain static file, for local-dev use via
+ *   fetch-live-stock-data.js.
  * @param {(path: string, contents: string) => Promise<void>} [options.writeFile]
  * @param {(path: string, options: { recursive: boolean }) => Promise<void>} [options.mkdir] -
- *   a fresh checkout (e.g. a CI runner) has no src/data/ directory at all,
- *   since stocks.json is gitignored and nothing else lives there to make
- *   git track the directory itself - so the output directory has to be
- *   created before writing into it, not assumed to already exist.
+ *   a fresh checkout (e.g. a CI runner) has neither src/data/ nor public/
+ *   at all, since stocks.json is gitignored and nothing else lives in
+ *   either directory to make git track them - so each output directory
+ *   has to be created before writing into it, not assumed to already
+ *   exist.
  * @param {() => string} [options.now]
  * @returns {Promise<{ generatedAt: string, stocks: Array<object> }>}
  */
 export async function runGenerateStockData({
   sourceUrl = DEFAULT_SOURCE_URL,
   outputPath = getDefaultOutputPath(),
+  publicOutputPath = getDefaultPublicOutputPath(),
   apiKey,
   fetchImpl = fetch,
   getCompanyProfile = realGetCompanyProfile,
@@ -126,8 +143,14 @@ export async function runGenerateStockData({
   });
 
   const payload = { generatedAt: now(), stocks };
+  const contents = JSON.stringify(payload, null, 2);
+
   await mkdir(dirname(outputPath), { recursive: true });
-  await writeFile(outputPath, JSON.stringify(payload, null, 2));
+  await writeFile(outputPath, contents);
+
+  await mkdir(dirname(publicOutputPath), { recursive: true });
+  await writeFile(publicOutputPath, contents);
+
   return payload;
 }
 
@@ -143,7 +166,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       apiKey: process.env.FINNHUB_API_KEY,
     });
     console.log(
-      `Wrote ${stocks.length} stocks to src/data/stocks.json (generated ${generatedAt})`,
+      `Wrote ${stocks.length} stocks to src/data/stocks.json and public/stocks.json (generated ${generatedAt})`,
     );
   } catch (error) {
     console.error(error.message ?? error);
